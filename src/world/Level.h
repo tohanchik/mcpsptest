@@ -3,10 +3,12 @@
 #include "AABB.h"
 #include <math.h>
 #include <vector>
+#include <queue>
+#include <functional>
 
 class Random;
 
-// Ticks per day
+// Ticks per day (MCPE 0.6.1 uses 20 TPS * 60 * 16 = 19200)
 static const long long TICKS_PER_DAY = 24000LL;
 
 class Level {
@@ -26,6 +28,9 @@ public:
 
   uint8_t getBlock(int wx, int wy, int wz) const;
   void setBlock(int wx, int wy, int wz, uint8_t id);
+  uint8_t getWaterDepth(int wx, int wy, int wz) const;
+  uint8_t getLavaDepth(int wx, int wy, int wz) const;
+  void setWaterDepth(int wx, int wy, int wz, uint8_t depth);
 
   uint8_t getSkyLight(int wx, int wy, int wz) const;
   uint8_t getBlockLight(int wx, int wy, int wz) const;
@@ -64,13 +69,55 @@ public:
 
   long long getTime() const { return m_time; }
 
-  void tick() {
-    // Advance time
-    m_time += 1;
-  }
+  void tick();
 
 private:
+  struct WaterTickNode {
+    int dueTick;
+    int idx;
+    bool operator>(const WaterTickNode &o) const {
+      if (dueTick != o.dueTick) return dueTick > o.dueTick;
+      return idx > o.idx;
+    }
+  };
+
+  void tickWater();
+  bool isWaterBlock(uint8_t id) const;
+  bool isLavaBlock(uint8_t id) const;
+  int waterIndex(int wx, int wy, int wz) const;
+  void scheduleWaterTick(int wx, int wy, int wz, int delayTicks);
+  void wakeWaterNeighborhood(int wx, int wy, int wz, int delayTicks);
+  void processWaterCell(int wx, int wy, int wz);
+  void tickLava();
+  void scheduleLavaTick(int wx, int wy, int wz, int delayTicks);
+  void wakeLavaNeighborhood(int wx, int wy, int wz, int delayTicks);
+  void processLavaCell(int wx, int wy, int wz);
+
   Chunk *m_chunks[WORLD_CHUNKS_X][WORLD_CHUNKS_Z];
+  std::vector<uint8_t> m_waterDepth;
+  std::priority_queue<WaterTickNode, std::vector<WaterTickNode>, std::greater<WaterTickNode>> m_waterTicks;
+  std::vector<int> m_waterDue;
+  std::vector<uint8_t> m_lavaDepth;
+  std::priority_queue<WaterTickNode, std::vector<WaterTickNode>, std::greater<WaterTickNode>> m_lavaTicks;
+  std::vector<int> m_lavaDue;
   long long m_time = 6000LL;
   float m_lastSunBrightness = 1.0f;
+  int m_simFocusX = -1;
+  int m_simFocusY = -1;
+  int m_simFocusZ = -1;
+  int m_simFocusRadius = 24;
+  int m_simFocusYRadius = 24;
+  bool m_waterDirty = true;
+  int m_waterWakeX = -1;
+  int m_waterWakeY = -1;
+  int m_waterWakeZ = -1;
+  int m_waterWakeRadius = 12;
+  int m_waterWakeTicks = 0;
+  bool m_lavaDirty = true;
+  int m_lavaWakeX = -1;
+  int m_lavaWakeY = -1;
+  int m_lavaWakeZ = -1;
+  int m_lavaWakeRadius = 8;
+  int m_lavaWakeTicks = 0;
+  bool m_inWaterSimUpdate = false;
 };
