@@ -131,7 +131,14 @@ static bool game_init() {
 static void game_update(float dt) {
   PSPInput_Update();
   if (g_level) {
-    g_level->tick();
+    static float s_levelTickAccum = 0.0f;
+    const float tickStep = 1.0f / 20.0f;
+    s_levelTickAccum += dt;
+    if (s_levelTickAccum > 0.25f) s_levelTickAccum = 0.25f;
+    while (s_levelTickAccum >= tickStep) {
+      g_level->tick();
+      s_levelTickAccum -= tickStep;
+    }
   }
 
   // Animation for WATER blocks
