@@ -1,8 +1,10 @@
+find_program(PSP_CONFIG_EXE psp-config)
+
 if(DEFINED ENV{PSPDEV})
     set(PSPDEV "$ENV{PSPDEV}" CACHE PATH "Root of the PSP toolchain")
-else()
+elseif(PSP_CONFIG_EXE)
     execute_process(
-        COMMAND psp-config --pspdev-path
+        COMMAND "${PSP_CONFIG_EXE}" --pspdev-path
         OUTPUT_VARIABLE PSPDEV
         OUTPUT_STRIP_TRAILING_WHITESPACE
         ERROR_QUIET
@@ -16,13 +18,20 @@ if(NOT PSPDEV OR NOT EXISTS "${PSPDEV}")
         "Either set the PSPDEV environment variable or make sure psp-config is in PATH.")
 endif()
 
-execute_process(
-    COMMAND psp-config --pspsdk-path
-    OUTPUT_VARIABLE PSPSDK
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    ERROR_QUIET
-)
-set(PSPSDK "${PSPSDK}" CACHE PATH "Path to PSPSDK")
+if(DEFINED ENV{PSPSDK})
+    set(PSPSDK "$ENV{PSPSDK}" CACHE PATH "Path to PSPSDK")
+elseif(PSP_CONFIG_EXE)
+    execute_process(
+        COMMAND "${PSP_CONFIG_EXE}" --pspsdk-path
+        OUTPUT_VARIABLE PSPSDK
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    set(PSPSDK "${PSPSDK}" CACHE PATH "Path to PSPSDK")
+else()
+    # Fallback for environments where psp-config is not on PATH.
+    set(PSPSDK "${PSPDEV}/psp/sdk" CACHE PATH "Path to PSPSDK")
+endif()
 set(CMAKE_SYSTEM_NAME      Generic)
 set(CMAKE_SYSTEM_PROCESSOR mips)
 
