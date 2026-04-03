@@ -1,0 +1,46 @@
+name: Build PSP EBOOT
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Pull PSP toolchain image
+        run: docker pull pspdev/pspdev:latest
+
+      - name: Verify PSP SDK in container
+        run: |
+          docker run --rm pspdev/pspdev:latest bash -lc '
+            which psp-config
+            psp-config --pspsdk-path
+          '
+
+      - name: Build in PSP container
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" \
+            -w /work \
+            pspdev/pspdev:latest \
+            bash -lc 'make -j"$(nproc)"'
+
+      - name: Check output
+        run: |
+          test -f EBOOT.PBP
+          ls -lh EBOOT.PBP
+
+      - name: Upload EBOOT artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EBOOT.PBP
+          path: EBOOT.PBP
+          if-no-files-found: error
